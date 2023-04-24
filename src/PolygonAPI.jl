@@ -3,6 +3,7 @@ module PolygonAPI
 using HTTP, JSON, TimesDates, Dates
 using  UUIDs, Printf
 using Dates 
+using UnPack
 
 #= Abstract -> EndPoint =#
 abstract type EndPoint end
@@ -37,7 +38,10 @@ ENDPOINT(c::Credentials)::String = EndPoint(c.ENDPOINT)
 include("Aggregations.jl")
 include("Markets.jl")
 include("Tickers.jl")
+include("Trades.jl")
 include("Snapshots.jl")
+include("Indicators.jl")
+include("utils.jl")
 
 function from_object_to_dict(object)
     return Dict(string(key)=>getfield(object, key) for key ∈ fieldnames(typeof(object)))

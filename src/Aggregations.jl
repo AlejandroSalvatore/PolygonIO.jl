@@ -1,5 +1,3 @@
-using HTTP, JSON, UUIDs
-
 abstract type AggTimeSpan end
 
 struct minute <: AggTimeSpan end
@@ -17,17 +15,6 @@ AggTimeSpan(::Type{week}, x::String="week") = x
 AggTimeSpan(::Type{month}, x::String="month") = x
 AggTimeSpan(::Type{quarter}, x::String="quarter") = x
 AggTimeSpan(::Type{year}, x::String="year") = x
-
-# DATE_FIN = get_time()
-# MAX_DATE = Dates.Year(10)
-# DATE_INI = DATE_FIN - MAX_DATE
-# DATE_FIN_DEF = Dates.format(DATE_FIN, "yyyy-mm-dd")
-# DATE_INI_DEF = Dates.format(DATE_INI, "yyyy-mm-dd")
-# DATE_INI_DEF = Dates.format(DATE_INI)
-# d = unix2datetime(1626926400000//1000)
-# typeof(d)
-# Dates.format(d, "yyyy-mm-dd")
-# typeof(DATE_FIN)
 
 struct Bar
     ticker::Union{String, Nothing}
@@ -57,6 +44,10 @@ function Bar(d::Dict{String, Any})
 end
 
 
+function from_bar_to_dict(bar::Bar)
+    dict = Dict(key=>getfield(s, key) for key ∈ fieldnames(typeof(bar)))
+    return dict
+end
 
 
 struct Agg

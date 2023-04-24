@@ -52,9 +52,3 @@ function get_market_status(c::Credentials)
     r = HTTP.get(join([ENDPOINT(c), "v1", "marketstatus", "now?apiKey=", c.KEY_ID], '/', ""))
     return MarketStatus(JSON.parse(String(r.body)))
 end
-
-function get_time(timezone::String="America/New_York")
-    est_time = TimeZone(timezone)
-    time = now(est_time)
-    return DateTime(time)
-end

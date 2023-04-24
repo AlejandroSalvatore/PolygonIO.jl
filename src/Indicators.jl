@@ -1,154 +1,194 @@
 #= Abstract -> Indicator =#
+
 struct IndicatorValue
     value::Float64
-    timestamp_last_agg::DateTime
+    timestamp::DateTime
+    histogram::Union{Float64, Nothing}
+    signal::Union{Float64, Nothing}
 end
 
-struct Indicator 
-    bar::Array{Bar}
-    ind_val::IndicatorValue
+function IndicatorValue(d::Dict)
+    histogram = "histogram" in keys(d) ? d["histogram"] : nothing
+    signal = "signal" in keys(d) ? d["signal"] : nothing
+    timestamp = unix2datetime(d["timestamp"]//1000)
+    value = d["value"]
+    return IndicatorValue(value, timestamp, histogram, signal)
+end
+
+struct Indicator
+    bars::Union{Vector{Bar}, Nothing}
+    values::Vector{IndicatorValue}
+    url_aggs::Union{String, Nothing}
 end
 
 function Indicator(d::Dict)
-    bar = d["aggregates"] 
-    high = d["h"] 
-    low = d["l"]
-    close = d["c"] 
-    weighted_volume = d["vw"]
-    volume = d["v"]
-    otc = "otc" in keys(d) ? false : true
-    return Day(open, high, low, close, volume, weighted_volume, otc)
+    underlying = "underlying" in keys(d) ? d["underlying"] : nothing
+    if underlying !== nothing
+        aggs = "aggregates" in keys(underlying) ? underlying["aggregates"] : nothing
+        bars = aggs !== nothing ? Bar.(aggs) : nothing
+        url_aggs = underlying["url"]
+    end     
+    values = IndicatorValue.(d["values"])
+    return Indicator(bars, values, url_aggs)
 end
 
-struct LastQuote
-    ask_price::Float64
-    bid_price::Float64
-    bid_size::Int
-    ask_size::Int
-    timestamp::DateTime
-
-end
-
-function LastQuote(d::Dict)
-    ask_price = d["P"] 
-    bid_price = d["p"] 
-    bid_size = d["s"]
-    ask_size = d["S"]
-    timestamp = unix2datetime(d["t"]//1000)
-    return LastQuote(ask_price, bid_price, bid_size, ask_size, timestamp)
-end
-
-struct LastTrade
-    conditions::Union{Array{Int}, Nothing}
-    id::String
-    price::Float64
-    size::Int
-    timestamp::DateTime
-    exchange_id::Int
-end
-
-function LastTrade(d::Dict)
-    conditions = d["c"]
-    id = d["i"]
-    price = d["p"]
-    size = d["s"]
-    timestamp = unix2datetime(d["t"]//1000)
-    exchange_id = d["x"]
-    return LastTrade(conditions, id, price, size, timestamp, exchange_id)
-end
-
-struct MostRecentMinute
-    accumulated_volume::Int
-    timestamp::DateTime
-    close::Float64
-    high::Float64
-    open::Float64
-    low::Float64
-    volume::Int
-    weighted_volume::Float64
-    otc::Bool
-end
-
-function MostRecentMinute(d::Dict)
-    accumulated_volume = d["av"]
-    timestamp = unix2datetime(d["t"]//1000)
-    close = d["c"]
-    high = d["h"]
-    open = d["o"]
-    low = d["l"]
-    volume = d["v"]
-    weighted_volume = d["vw"]
-    otc = "otc" in keys(d) ? true : false
-    return MostRecentMinute(accumulated_volume, timestamp, close, high, open, low, volume, weighted_volume, otc)
-end
-
-struct Snapshot
-    ticker::String
-    change_perc::Float64
-    change::Float64
-    updated::DateTime
-    day::Day
-    prev_day::Day
-    min::MostRecentMinute
-    last_trade::Union{LastTrade, Nothing}
-    last_quoute::Union{LastQuote, Nothing}
-end    
-
-#= Snapshot -> API =#
-function Snapshot(d::Dict)
-    ticker = d["ticker"]
-    change_perc = d["todaysChangePerc"]
-    change = d["todaysChange"]
-    updated = unix2datetime(d["updated"])
-    day = Day(d["day"])
-    prev_day = Day(d["prevDay"])
-    min = MostRecentMinute(d["min"])
-    last_trade = "lastTrade" in keys(d) ? LastTrade(d["lastTrade"]) : nothing
-    last_quote = "lastQuote" in keys(d) ? LastQuoute(d["lastQuoute"]) : nothing
-
-    return Snapshot(ticker, change_perc, change, updated, day, prev_day, min, last_trade, last_quote)
-end
-
-#= Julia -> API -> Julia =#
-function get_snaps(c::Credentials; tickers::Union{Array{String}, String, Nothing}=nothing, include_otc::Bool=false)
-
+function get_sma(
+    c::Credentials,
+    ticker::String, 
+    timespan::Type{T} where {T<:AggTimeSpan}; 
+    filter::String="=", 
+    timestamp::String=get_date(), 
+    adjusted::Bool=true, window::Int64=5, 
+    series_type::String="close", 
+    expand_underlying::Bool=false, 
+    order::String="desc", 
+    limit::Int64=5000
+    )
+    
     query = Dict()
-    if tickers !== nothing
-        query["tickers"] = typeof(tickers) == String ? tickers : join(tickers, ",")
+    query["apiKey"] = c.KEY_ID
+    query["stockTicker"] = ticker
+    query[filter_timestamp(filter)] = timestamp
+    query["timespan"] = AggTimeSpan(timespan)
+    query["adjusted"] = string(adjusted)
+    query["window"] = window
+    query["series_type"] = series_type
+    query["expand_underlying"] = string(expand_underlying)
+    query["order"] = order
+    query["limit"] = limit
+
+
+    r = HTTP.get(join([ENDPOINT(c), "v1", "indicators", "sma", "$(ticker)"], '/'), header = HEADER(c), query = query)
+    response = JSON.parse(String(r.body))
+    results = response["results"]
+    while "next_url" in keys(response)
+        next_url = response["next_url"]
+        r = HTTP.get(next_url*"&apiKey=$(query["apiKey"])")
+        response = JSON.parse(String(r.body))
+        results_next = response["results"]
+        append!(results, results_next)
     end
-    query["include_otc"] = include_otc
-    query["apiKey"] = c.KEY_ID
-
-    r = HTTP.get(join([ENDPOINT(c), "v2", "snapshot", "locale", "us", "markets", "stocks", "tickers"], '/'), header = HEADER(c), query = query)
-    return Snapshot.(JSON.parse(String(r.body))["tickers"])
+    return Indicator(results)
 end
 
-function get_gainers_snap(c::Credentials, direction::String="gainers"; include_otc::Bool=false)
-
+function get_ema(
+    c::Credentials,
+    ticker::String, 
+    timespan::Type{T} where {T<:AggTimeSpan}; 
+    filter::String="=", 
+    timestamp::String=get_date(), 
+    adjusted::Bool=true, window::Int64=5, 
+    series_type::String="close", 
+    expand_underlying::Bool=false, 
+    order::String="desc", 
+    limit::Int64=5000
+    )
+    
     query = Dict()
-    query["include_otc"] = include_otc
     query["apiKey"] = c.KEY_ID
+    query["stockTicker"] = ticker
+    query[filter_timestamp(filter)] = timestamp
+    query["timespan"] = AggTimeSpan(timespan)
+    query["adjusted"] = string(adjusted)
+    query["window"] = window
+    query["series_type"] = series_type
+    query["expand_underlying"] = string(expand_underlying)
+    query["order"] = order
+    query["limit"] = limit
 
-    r = HTTP.get(join([ENDPOINT(c), "v2", "snapshot", "locale", "us", "markets", "stocks", direction], '/'), header = HEADER(c), query = query)
-    return Snapshot.(JSON.parse(String(r.body))["tickers"])
+
+    r = HTTP.get(join([ENDPOINT(c), "v1", "indicators", "ema", "$(ticker)"], '/'), header = HEADER(c), query = query)
+    response = JSON.parse(String(r.body))
+    results = response["results"]
+    while "next_url" in keys(response)
+        next_url = response["next_url"]
+        r = HTTP.get(next_url*"&apiKey=$(query["apiKey"])")
+        response = JSON.parse(String(r.body))
+        results_next = response["results"]
+        append!(results, results_next)
+    end
+    return Indicator(results)
 end
 
-
-function get_losers_snap(c::Credentials, direction::String="losers"; include_otc::Bool=false)
-
+function get_rsi(
+    c::Credentials,
+    ticker::String, 
+    timespan::Type{T} where {T<:AggTimeSpan}; 
+    filter::String="=", 
+    timestamp::String=get_date(), 
+    adjusted::Bool=true, 
+    window::Int64=5, 
+    series_type::String="close", 
+    expand_underlying::Bool=false, 
+    order::String="desc", 
+    limit::Int64=5000
+    )
+    
     query = Dict()
-    query["include_otc"] = include_otc
     query["apiKey"] = c.KEY_ID
+    query["stockTicker"] = ticker
+    query[filter_timestamp(filter)] = timestamp
+    query["timespan"] = AggTimeSpan(timespan)
+    query["adjusted"] = string(adjusted)
+    query["window"] = window
+    query["series_type"] = series_type
+    query["expand_underlying"] = string(expand_underlying)
+    query["order"] = order
+    query["limit"] = limit
 
-    r = HTTP.get(join([ENDPOINT(c), "v2", "snapshot", "locale", "us", "markets", "stocks", direction], '/'), header = HEADER(c), query = query)
-    return Snapshot.(JSON.parse(String(r.body))["tickers"])
+
+    r = HTTP.get(join([ENDPOINT(c), "v1", "indicators", "rsi", "$(ticker)"], '/'), header = HEADER(c), query = query)
+    response = JSON.parse(String(r.body))
+    results = response["results"]
+    while "next_url" in keys(response)
+        next_url = response["next_url"]
+        r = HTTP.get(next_url*"&apiKey=$(query["apiKey"])")
+        response = JSON.parse(String(r.body))
+        results_next = response["results"]
+        append!(results, results_next)
+    end
+    return Indicator(results)
 end
 
-function get_snap(c::Credentials, ticker::String)
-
+function get_macd(
+    c::Credentials,
+    ticker::String, 
+    timespan::AggTimeSpan, 
+    short_window, 
+    long_window, 
+    signal_window; 
+    filter::String="=", 
+    timestamp::String=get_date(), 
+    adjusted::Bool=true, 
+    series_type::String="close", 
+    expand_underlying::Bool=false, 
+    order::String="desc", 
+    limit::Int64=5000
+    )
+    
     query = Dict()
     query["apiKey"] = c.KEY_ID
+    query["stockTicker"] = ticker
+    query[filter_timestamp(filter)] = timestamp
+    query["timespan"] = AggTimeSpan(timespan)
+    query["adjusted"] = string(adjusted)
+    query["short_window"] = short_window
+    query["long_window"] = long_window
+    query["signal_window"] = signal_window
+    query["series_type"] = series_type
+    query["expand_underlying"] = string(expand_underlying)
+    query["order"] = order
+    query["limit"] = limit
 
-    r = HTTP.get(join([ENDPOINT(c), "v2", "snapshot", "locale", "us", "markets", "stocks", "tickers", ticker], '/'), header = HEADER(c), query = query)
-    return Snapshot(JSON.parse(String(r.body))["ticker"])
+    r = HTTP.get(join([ENDPOINT(c), "v1", "indicators", "macd", "$(ticker)"], '/'), header = HEADER(c), query = query)
+    response = JSON.parse(String(r.body))
+    results = response["results"]
+    while "next_url" in keys(response)
+        next_url = response["next_url"]
+        r = HTTP.get(next_url*"&apiKey=$(query["apiKey"])")
+        response = JSON.parse(String(r.body))
+        results_next = response["results"]
+        append!(results, results_next)
+    end
+    return Indicator(results)
 end

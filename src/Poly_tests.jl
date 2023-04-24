@@ -4,26 +4,12 @@ ENV["POLY_REAL_TIME"] = true
 ENV["POLY_MAX_RANGE"] = 10
 
 using PolygonAPI
-
 c = PolygonAPI.credentials()
 PolygonAPI.HEADER(c)
 
 using Dates
-function get_time(url::String="")
-    if length(url) != 0
-        pol_time = HTTP.request("GET", url)
-        json = get_response(pol_time)
-        time = json["serverTime"]
-        time = time[1:length(time)-6]
-        return DateTime(time)
-    else    
-        est_time = TimeZone("America/New_York")
-        time = now(est_time)
-        return DateTime(time)
-    end
-end
 
-DATE_FIN = get_time()
+DATE_FIN = PolygonAPI.get_time()
 MAX_DATE = Dates.Year(9)
 DATE_INI = DATE_FIN - MAX_DATE
 DATE_FIN_DEF = Dates.format(DATE_FIN, "yyyy-mm-dd")
@@ -78,4 +64,11 @@ k1 = filter(a -> a.type == "CS", f)
 k2 = map(a -> a.ticker, k1)
 k3 = map(a -> PolygonAPI.get_agg(c, a, 1, PolygonAPI.day, DATE_INI_DEF, DATE_FIN_DEF), k2)
 k4 = map(a -> (a.ticker, a.results), k3)
+
+l = PolygonAPI.get_trades(c, "AAPL", timestamp="2023-04-21")
+m = PolygonAPI.get_last_trade(c, "AAPL")
+
+n = PolygonAPI.get_sma(c, "AAPL", PolygonAPI.day)
+o = PolygonAPI.get_ema(c, "AAPL", PolygonAPI.day)
+
 

@@ -1,4 +1,5 @@
 #= Abstract -> Snapshot =#
+
 struct Day
     open::Float64
     high::Float64
@@ -38,25 +39,6 @@ function LastQuote(d::Dict)
     return LastQuote(ask_price, bid_price, bid_size, ask_size, timestamp)
 end
 
-struct LastTrade
-    conditions::Union{Array{Int}, Nothing}
-    id::String
-    price::Float64
-    size::Int
-    timestamp::DateTime
-    exchange_id::Int
-end
-
-function LastTrade(d::Dict)
-    conditions = d["c"]
-    id = d["i"]
-    price = d["p"]
-    size = d["s"]
-    timestamp = unix2datetime(d["t"]//1000)
-    exchange_id = d["x"]
-    return LastTrade(conditions, id, price, size, timestamp, exchange_id)
-end
-
 struct MostRecentMinute
     accumulated_volume::Int
     timestamp::DateTime
@@ -90,7 +72,7 @@ struct Snapshot
     day::Day
     prev_day::Day
     min::MostRecentMinute
-    last_trade::Union{LastTrade, Nothing}
+    last_trade::Union{Trade, Nothing}
     last_quoute::Union{LastQuote, Nothing}
 end    
 
@@ -99,7 +81,7 @@ function Snapshot(d::Dict)
     ticker = d["ticker"]
     change_perc = d["todaysChangePerc"]
     change = d["todaysChange"]
-    updated = unix2datetime(d["updated"])
+    updated = unix2datetime(d["updated"]//1000)
     day = Day(d["day"])
     prev_day = Day(d["prevDay"])
     min = MostRecentMinute(d["min"])
