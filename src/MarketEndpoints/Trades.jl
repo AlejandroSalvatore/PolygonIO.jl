@@ -1,3 +1,7 @@
+export Trade
+export trades
+export last_trade 
+
 struct Trade
     ticker::Union{String, Nothing}
     conditions::Union{Array{Int64}, Nothing}
@@ -14,7 +18,7 @@ struct Trade
     tape::Union{Int64, Nothing}
 end
 
-function Trade(d::Dict)
+function _Trade(d::Dict{String, Any})
     exchange = d["exchange"]
     id = d["id"]
     price = d["price"]
@@ -31,8 +35,25 @@ function Trade(d::Dict)
     return Trade(ticker, conditions, correction, trf_timestamp, id, price, sequence_number, trf_id, size, sip_timestamp, exchange, participant_timestamp, tape)
 end
 
+function Trade(d::Dict{Symbol, Any})
+    exchange = d[:exchange]
+    id = d[:id]
+    price = d[:price]
+    sequence_number = d[:sequence_number]
+    size = d[:size]
+    conditions = d[:conditions]
+    correction = d[:correction]
+    sip_timestamp = d[:sip_timestamp]
+    participant_timestamp = d[:participant_timestamp]
+    tape = d[:tape]
+    trf_id = d[:trf_id]
+    trf_timestamp = d[:trf_timestamp]
+    ticker = d[:ticker]
+    return Trade(ticker, conditions, correction, trf_timestamp, id, price, sequence_number, trf_id, size, sip_timestamp, exchange, participant_timestamp, tape)
+end
 
-function get_trades(c::Credentials, ticker::String; timestamp::String=get_date(), filter::String="=", order::String="desc", limit::Int64=50000, sort=nothing)
+
+function trades(c::Credentials, ticker::String; timestamp::String=get_date(), filter::String="=", order::String="desc", limit::Int64=50000, sort=nothing)
 
     query = Dict()
     query["ticker"] = ticker
@@ -40,22 +61,21 @@ function get_trades(c::Credentials, ticker::String; timestamp::String=get_date()
     if order !== nothing query["order"] = order end 
     if limit !== nothing query["limit"] = limit end 
     if sort !== nothing query["sort"] = sort end 
-    query["apiKey"] = c.KEY_ID
 
-    r = HTTP.get(join([ENDPOINT(c), "v3", "trades", "$(ticker)"], '/'), query=query)
+    r = HTTP.get(join([ENDPOINT(c), "v3", "trades", "$(ticker)"], '/'), query=query, headers = HEADER(c))
     response = JSON.parse(String(r.body))
     results = response["results"]
     while "next_url" in keys(response)
         next_url = response["next_url"]
-        r = HTTP.get(next_url*"&apiKey=$(query["apiKey"])")
+        r = HTTP.get(next_url, headers = HEADER(c))
         response = JSON.parse(String(r.body))
         results_next = response["results"]
         append!(results, results_next)
     end
-    return Trade.(results)
+    return _Trade.(results)
 end
 
-function LastTrade(d::Dict)
+function _LastTrade(d::Dict{String, Any})
     ticker = "T" in keys(d) ? d["T"] : nothing
     conditions = "c" in keys(d) ? d["c"] : nothing
     correction = "e" in keys(d) ? d["e"] : nothing
@@ -73,14 +93,13 @@ function LastTrade(d::Dict)
 end
 
 
-function get_last_trade(c::Credentials, ticker::String)
+function last_trade(c::Credentials, ticker::String)
     query = Dict()
     query["ticker"] = ticker
-    query["apiKey"] = c.KEY_ID
 
-    r = HTTP.get(join([ENDPOINT(c), "v2", "last", "trade", "$(ticker)"], '/'), query=query)
+    r = HTTP.get(join([ENDPOINT(c), "v2", "last", "trade", "$(ticker)"], '/'), query=query, headers = HEADER(c))
     response = JSON.parse(String(r.body))
     results = response["results"]
 
-    return LastTrade(results)
+    return _LastTrade(results)
 end

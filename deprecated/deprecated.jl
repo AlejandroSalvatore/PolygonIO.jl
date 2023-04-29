@@ -1,5 +1,4 @@
 
-using HTTP, Dates, TimeZones, JSON, CSV, DataFrames, Plots, Flux
 
 # This is the key for the api
 KEY = "s2Sl5GoOibf4wEICr2LJ2oQn_w3paeLK"

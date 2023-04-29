@@ -1,9 +1,8 @@
 module PolygonAPI
 
+export credentials
+using Reexport
 using HTTP, JSON, TimesDates, Dates
-using  UUIDs, Printf
-using Dates 
-using UnPack
 
 #= Abstract -> EndPoint =#
 abstract type EndPoint end
@@ -18,8 +17,8 @@ EndPoint(::Type{T}) where {T<:EndPoint} = T == LIVE ? "https://api.polygon.io" :
 struct Credentials 
     ENDPOINT::Type{T} where {T<:EndPoint}
     KEY_ID::String
-    REAL_TIME::Bool
-    MAX_RANGE::Int
+    REAL_TIME::Union{Bool, Nothing}
+    MAX_RANGE::Union{Int64, Nothing}
 end
 
 #= Environment -> Credentials =#
@@ -30,21 +29,24 @@ credentials() = Credentials(
     parse(Int, ENV["POLY_MAX_RANGE"])
 )
 
+credentials(key_id::String) = Credentials(LIVE, key_id, nothing, nothing)
+
 
 #= Credentials -> PolygonApi =#
-HEADER(c::Credentials)::Dict = Dict("Authorization"=>join(["Bearer", c.KEY_ID], " "))
+HEADER(c::Credentials) = Dict("Authorization"=>join(["Bearer", c.KEY_ID], " "))
+function HEADER(c::Credentials, csv::Bool)
+    if csv
+        return Dict("Authorization"=>join(["Bearer", c.KEY_ID], " "), "Accept" => "text/csv")
+    else
+        return Dict("Authorization"=>join(["Bearer", c.KEY_ID], " "))
+    end
+end
+    
 ENDPOINT(c::Credentials)::String = EndPoint(c.ENDPOINT)
 
-include("Aggregations.jl")
-include("Markets.jl")
-include("Tickers.jl")
-include("Trades.jl")
-include("Snapshots.jl")
-include("Indicators.jl")
-include("utils.jl")
-
-function from_object_to_dict(object)
-    return Dict(string(key)=>getfield(object, key) for key ∈ fieldnames(typeof(object)))
-end
+include("./utils.jl")
+include("./MarketEndpoints/MarketEndpoints.jl")
+include("./ReferenceEndpoints/ReferenceEndpoints.jl")
 
 end
+

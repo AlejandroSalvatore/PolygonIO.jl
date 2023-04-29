@@ -4,8 +4,7 @@ ENV["POLY_REAL_TIME"] = true
 ENV["POLY_MAX_RANGE"] = 10
 
 using PolygonAPI
-c = PolygonAPI.credentials()
-PolygonAPI.HEADER(c)
+c = credentials()
 
 using Dates
 
@@ -22,8 +21,8 @@ c.REAL_TIME
 c.MAX_RANGE
 #Market
 
-PolygonAPI.get_market_holidays(c)
-status = PolygonAPI.get_market_status(c)
+market_holidays(c)
+market_status(c)
 
 
 

@@ -1,4 +1,5 @@
-using HTTP, JSON, UUIDs
+export TickerDetails
+export details
 
 struct TickerDetails
     active::Union{Bool, Nothing}
@@ -27,7 +28,8 @@ struct TickerDetails
     weighted_shares_outstanding::Union{Int, Nothing}
 end
 
-function TickerDetails(d::Dict)
+
+function _TickerDetails(d::Dict{String, Any})
     active = "active" in keys(d) ? d["active"] : nothing
     cik = "cik" in keys(d) ? d["cik"] : nothing
     composite_figi = "composite_figi" in keys(d) ? d["composite_figi"] : nothing
@@ -59,15 +61,49 @@ function TickerDetails(d::Dict)
                 sic_code, sic_description, ticker_root, total_employees, weighted_shares_outstanding)
 end
 
-function get_ticker_details(c::Credentials, ticker::String; date::Union{String, Nothing} = nothing)
-    query = Dict()
-    if date !== nothing query["date"] = date end 
-    query["apiKey"] = c.KEY_ID
-    r = HTTP.get(join([ENDPOINT(c), "v3","reference", "tickers", HTTP.URIs.escapeuri(string(ticker))], '/'), query = query)
-    return TickerDetails(JSON.parse(String(r.body))["results"])
+
+function TickerDetails(d::Dict{Symbol, Any})
+    active = d[:active]
+    cik = d[:cik]
+    composite_figi = d[:composite_figi]
+    currency_name = d[:currency_name]
+    last_updated_utc = d[:last_updated_utc]
+    locale = d[:locale]
+    market = d[:market]
+    name = d[:name]
+    primary_exchange = d[:primary_exchange]
+    share_class_figi = d[:share_class_figi]
+    ticker = d[:ticker]
+    type = d[:type]
+    delisted_utc = d[:delisted_utc]
+    description = d[:description]
+    homepage_url = d[:homepage_url]
+    list_date = d[:list_date]
+    market_cap = d[:market_cap]
+    phone_number = d[:phone_number]
+    share_class_shares_outstanding = d[:share_class_shares_outstanding]
+    sic_code = d[:sic_code]
+    sic_description = d[:sic_description]
+    ticker_root = d[:ticker_root]
+    total_employees = d[:total_employees]
+    weighted_shares_outstanding = d[:weighted_shares_outstanding]
+
+    return TickerDetails(active, cik, composite_figi, currency_name, last_updated_utc, locale,
+    market, name, primary_exchange, share_class_figi, ticker, type, delisted_utc, 
+    description, homepage_url, list_date, market_cap, phone_number, share_class_shares_outstanding,
+    sic_code, sic_description, ticker_root, total_employees, weighted_shares_outstanding)
 end
 
-function get_tickers_details(c::Credentials; ticker::Union{String, Nothing}=nothing, type::Union{String, Nothing}=nothing, 
+
+function details(c::Credentials, ticker::String; date::Union{String, Nothing} = nothing)
+    query = Dict()
+    if date !== nothing query["date"] = date end 
+    r = HTTP.get(join([ENDPOINT(c), "v3","reference", "tickers", HTTP.URIs.escapeuri(string(ticker))], '/'), query = query, headers = HEADER(c))
+    return _TickerDetails(JSON.parse(String(r.body))["results"])
+end
+
+
+function details(c::Credentials; ticker::Union{String, Nothing}=nothing, type::Union{String, Nothing}=nothing, 
     market::Union{String, Nothing}=nothing, exchange::Union{String, Nothing}=nothing, cusip::Union{String, Nothing}=nothing, 
     cik::Union{String, Nothing}=nothing, date::Union{String, Nothing}=nothing, search::Union{String, Nothing}=nothing, 
     active::Union{String, Nothing}=nothing, order::Union{String, Nothing}=nothing, limit::Union{Int, Nothing}=1000, 
@@ -86,24 +122,17 @@ function get_tickers_details(c::Credentials; ticker::Union{String, Nothing}=noth
     if order !== nothing query["order"] = order end 
     if limit !== nothing query["limit"] = limit end 
     if sort !== nothing query["sort"] = sort end 
-    query["apiKey"] = c.KEY_ID
     query["limit"] = limit 
 
-    r = HTTP.get(join([ENDPOINT(c), "v3", "reference", "tickers"], '/'), query=query)
+    r = HTTP.get(join([ENDPOINT(c), "v3", "reference", "tickers"], '/'), query=query, headers = HEADER(c))
     response = JSON.parse(String(r.body))
     results = response["results"]
     while "next_url" in keys(response)
         next_url = response["next_url"]
-        r = HTTP.get(next_url*"&apiKey=$(query["apiKey"])")
+        r = HTTP.get(next_url, headers = HEADER(c))
         response = JSON.parse(String(r.body))
         results_next = response["results"]
         append!(results, results_next)
     end
-    return TickerDetails.(results)
+    return _TickerDetails.(results)
 end
-
-
-
-
-
-

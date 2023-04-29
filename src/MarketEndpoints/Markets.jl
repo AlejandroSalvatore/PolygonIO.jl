@@ -1,4 +1,9 @@
 #= Abstract -> MarketHoliday =#
+export MarketHoliday
+export market_holidays
+export MarketStatus
+export market_status
+
 struct MarketHoliday
     date::Date
     exchange::String
@@ -10,7 +15,7 @@ end
 
 #Fix for optional close and open
 #= MarketHoliday -> API =#
-function MarketHoliday(d::Dict)
+function _MarketHoliday(d::Dict{String, Any})
     date = Date(d["date"])
     exchange = d["exchange"]
     name =d["name"]
@@ -20,10 +25,21 @@ function MarketHoliday(d::Dict)
     return MarketHoliday(date, exchange, name, open, close, status)
 end
 
+function MarketHoliday(d::Dict{Symbol, Any})
+    date = d[:date]
+    exchange = d[:exchange]
+    name =d[:name]
+    open = d[:open]
+    close = d[:close]
+    status = d[:status]
+    return MarketHoliday(date, exchange, name, open, close, status)
+end
+
+
 #= Julia -> API -> Julia =#
-function get_market_holidays(c::Credentials)
-    r = HTTP.get(join([ENDPOINT(c), "v1", "marketstatus", "upcoming?apiKey=", c.KEY_ID], '/', ""))
-    return MarketHoliday.(JSON.parse(String(r.body)))
+function market_holidays(c::Credentials)
+    r = HTTP.get(join([ENDPOINT(c), "v1", "marketstatus", "upcoming"], "/"), headers = HEADER(c))
+    return _MarketHoliday.(JSON.parse(String(r.body)))
 end
 
 #= Abstract -> MarketStatus =#
@@ -37,7 +53,7 @@ struct MarketStatus
 end
 
 #= MarketStatus -> API =#
-function MarketStatus(d::Dict)
+function _MarketStatus(d::Dict{String, Any})
     afterHours = d["afterHours"]
     currencies = d["currencies"]
     earlyHours = d["earlyHours"]
@@ -47,8 +63,19 @@ function MarketStatus(d::Dict)
     return MarketStatus(afterHours, currencies, earlyHours, exchanges, market, serverTime)
 end
 
+#= MarketStatus -> API =#
+function MarketStatus(d::Dict{Symbol, Any})
+    afterHours = d[:afterHours]
+    currencies = d[:currencies]
+    earlyHours = d[:earlyHours]
+    exchanges = d[:exchanges]
+    market = d[:market]
+    serverTime = d[:serverTime]
+    return MarketStatus(afterHours, currencies, earlyHours, exchanges, market, serverTime)
+end
+
 #= Julia -> API -> MarketStatus =#
-function get_market_status(c::Credentials)
-    r = HTTP.get(join([ENDPOINT(c), "v1", "marketstatus", "now?apiKey=", c.KEY_ID], '/', ""))
-    return MarketStatus(JSON.parse(String(r.body)))
+function market_status(c::Credentials)
+    r = HTTP.get(join([ENDPOINT(c), "v1", "marketstatus", "now"], "/"), headers = HEADER(c))
+    return _MarketStatus(JSON.parse(String(r.body)))
 end
