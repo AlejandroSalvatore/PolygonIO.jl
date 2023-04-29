@@ -5,6 +5,7 @@ Julia wrapper around polygon.io REST API to query market data.
 To start using it, get your API key from polygon.io and generate your credentials
 
 ```julia
+using PolygonAPI
 key = "********"
 c = credentials(key)
 ```
