@@ -1,6 +1,7 @@
 module PolygonAPI
 
 export credentials
+
 using Reexport
 using HTTP, JSON, TimesDates, Dates
 
