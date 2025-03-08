@@ -62,7 +62,7 @@ end
 function sma(
     c::Credentials,
     ticker::String, 
-    timespan::Type{T} where {T<:BarTimeSpan}; 
+    timespan::T where {T<:BarTimespan}; 
     filter::String="=", 
     timestamp::String=get_date(), 
     adjusted::Bool=true, window::Int64=5, 
@@ -75,7 +75,7 @@ function sma(
     query = Dict()
     query["stockTicker"] = ticker
     query[filter_timestamp(filter)] = timestamp
-    query["timespan"] = BarTimeSpan(timespan)
+    query["timespan"] = bar_timespan(timespan)
     query["adjusted"] = string(adjusted)
     query["window"] = window
     query["series_type"] = series_type
@@ -84,7 +84,7 @@ function sma(
     query["limit"] = limit
 
 
-    r = HTTP.get(join([ENDPOINT(c), "v1", "indicators", "sma", "$(ticker)"], '/'), headers = HEADER(c), query = query)
+    r = HTTP.get(join([endpoint(c), "v1", "indicators", "sma", "$(ticker)"], '/'), headers = header(c), query = query)
     response = JSON.parse(String(r.body))
     results = response["results"]
     while "next_url" in keys(response)
@@ -100,7 +100,7 @@ end
 function ema(
     c::Credentials,
     ticker::String, 
-    timespan::Type{T} where {T<:BarTimeSpan}; 
+    timespan::T where {T<:BarTimespan}; 
     filter::String="=", 
     timestamp::String=get_date(), 
     adjusted::Bool=true, window::Int64=5, 
@@ -113,7 +113,7 @@ function ema(
     query = Dict()
     query["stockTicker"] = ticker
     query[filter_timestamp(filter)] = timestamp
-    query["timespan"] = BarTimeSpan(timespan)
+    query["timespan"] = bar_timestamp(timespan)
     query["adjusted"] = string(adjusted)
     query["window"] = window
     query["series_type"] = series_type
@@ -122,12 +122,12 @@ function ema(
     query["limit"] = limit
 
 
-    r = HTTP.get(join([ENDPOINT(c), "v1", "indicators", "ema", "$(ticker)"], '/'), headers = HEADER(c), query = query)
+    r = HTTP.get(join([endpoint(c), "v1", "indicators", "ema", "$(ticker)"], '/'), headers = header(c), query = query)
     response = JSON.parse(String(r.body))
     results = response["results"]
     while "next_url" in keys(response)
         next_url = response["next_url"]
-        r = HTTP.get(next_url, headers = HEADER(c))
+        r = HTTP.get(next_url, headers = header(c))
         response = JSON.parse(String(r.body))
         results_next = response["results"]
         append!(results, results_next)
@@ -138,7 +138,7 @@ end
 function rsi(
     c::Credentials,
     ticker::String, 
-    timespan::Type{T} where {T<:BarTimeSpan}; 
+    timespan::T where {T<:BarTimespan}; 
     filter::String="=", 
     timestamp::String=get_date(), 
     adjusted::Bool=true, 
@@ -152,7 +152,7 @@ function rsi(
     query = Dict()
     query["stockTicker"] = ticker
     query[filter_timestamp(filter)] = timestamp
-    query["timespan"] = BarTimeSpan(timespan)
+    query["timespan"] = bar_timespan(timespan)
     query["adjusted"] = string(adjusted)
     query["window"] = window
     query["series_type"] = series_type
@@ -161,7 +161,7 @@ function rsi(
     query["limit"] = limit
 
 
-    r = HTTP.get(join([ENDPOINT(c), "v1", "indicators", "rsi", "$(ticker)"], '/'), headers = HEADER(c), query = query)
+    r = HTTP.get(join([endpoint(c), "v1", "indicators", "rsi", "$(ticker)"], '/'), headers = header(c), query = query)
     response = JSON.parse(String(r.body))
     results = response["results"]
     while "next_url" in keys(response)
@@ -177,7 +177,7 @@ end
 function macd(
     c::Credentials,
     ticker::String, 
-    timespan::Type{T} where T <: BarTimeSpan, 
+    timespan::T where {T <: BarTimespan}, 
     short_window::Int64, 
     long_window::Int64, 
     signal_window::Int64; 
@@ -193,7 +193,7 @@ function macd(
     query = Dict()
     query["stockTicker"] = ticker
     query[filter_timestamp(filter)] = timestamp
-    query["timespan"] = BarTimeSpan(timespan)
+    query["timespan"] = bar_timespan(timespan)
     query["adjusted"] = string(adjusted)
     query["short_window"] = short_window
     query["long_window"] = long_window
@@ -203,7 +203,7 @@ function macd(
     query["order"] = order
     query["limit"] = limit
 
-    r = HTTP.get(join([ENDPOINT(c), "v1", "indicators", "macd", "$(ticker)"], '/'), headers = HEADER(c), query = query)
+    r = HTTP.get(join([endpoint(c), "v1", "indicators", "macd", "$(ticker)"], '/'), headers = header(c), query = query)
     response = JSON.parse(String(r.body))
     results = response["results"]
     while "next_url" in keys(response)

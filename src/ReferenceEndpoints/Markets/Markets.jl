@@ -1,8 +1,8 @@
 #= Abstract -> MarketHoliday =#
 export MarketHoliday
-export market_holidays
+export get_market_holidays
 export MarketStatus
-export market_status
+export get_market_status
 
 struct MarketHoliday
     date::Date
@@ -37,8 +37,8 @@ end
 
 
 #= Julia -> API -> Julia =#
-function market_holidays(c::Credentials)
-    r = HTTP.get(join([ENDPOINT(c), "v1", "marketstatus", "upcoming"], "/"), headers = HEADER(c))
+function get_market_holidays(c::Credentials)
+    r = HTTP.get(join([endpoint(c), "v1", "marketstatus", "upcoming"], "/"), headers = header(c))
     return _MarketHoliday.(JSON.parse(String(r.body)))
 end
 
@@ -75,7 +75,7 @@ function MarketStatus(d::Dict{Symbol, Any})
 end
 
 #= Julia -> API -> MarketStatus =#
-function market_status(c::Credentials)
-    r = HTTP.get(join([ENDPOINT(c), "v1", "marketstatus", "now"], "/"), headers = HEADER(c))
+function get_market_status(c::Credentials)
+    r = HTTP.get(join([endpoint(c), "v1", "marketstatus", "now"], "/"), headers = header(c))
     return _MarketStatus(JSON.parse(String(r.body)))
 end

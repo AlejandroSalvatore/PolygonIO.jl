@@ -98,7 +98,7 @@ end
 function details(c::Credentials, ticker::String; date::Union{String, Nothing} = nothing)
     query = Dict()
     if date !== nothing query["date"] = date end 
-    r = HTTP.get(join([ENDPOINT(c), "v3","reference", "tickers", HTTP.URIs.escapeuri(string(ticker))], '/'), query = query, headers = HEADER(c))
+    r = HTTP.get(join([endpoint(c), "v3","reference", "tickers", HTTP.URIs.escapeuri(string(ticker))], '/'), query = query, headers = header(c))
     return _TickerDetails(JSON.parse(String(r.body))["results"])
 end
 
@@ -124,12 +124,12 @@ function details(c::Credentials; ticker::Union{String, Nothing}=nothing, type::U
     if sort !== nothing query["sort"] = sort end 
     query["limit"] = limit 
 
-    r = HTTP.get(join([ENDPOINT(c), "v3", "reference", "tickers"], '/'), query=query, headers = HEADER(c))
+    r = HTTP.get(join([endpoint(c), "v3", "reference", "tickers"], '/'), query=query, headers = header(c))
     response = JSON.parse(String(r.body))
     results = response["results"]
     while "next_url" in keys(response)
         next_url = response["next_url"]
-        r = HTTP.get(next_url, headers = HEADER(c))
+        r = HTTP.get(next_url, headers = header(c))
         response = JSON.parse(String(r.body))
         results_next = response["results"]
         append!(results, results_next)

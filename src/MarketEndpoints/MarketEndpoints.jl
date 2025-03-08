@@ -1,6 +1,0 @@
-include("./Bars.jl")
-include("./Tickers.jl")
-include("./Trades.jl")
-include("./Indicators.jl")
-include("./Markets.jl")
-include("./Snapshots.jl")
